@@ -3,21 +3,24 @@ import PIL
 import math
 import logging
 import contextlib
-from PIL import Image
+from PIL import Image, ImageOps
 
-directory = os.getcwd()
+directory = os.path.join(os.getcwd(), "source")
 
 
 def image_boundbox(img, bg_color=(255, 255, 255)):
     width = img.width
     height = img.height
 
+    img_grayscale = ImageOps.grayscale(img)
+
+    tolerance = {250, 251, 252, 253, 254, 255, }
     # find left bound
     left = 0
     for y in range(height):
         for x in range(width):
-            if img.getpixel((x, y)) != bg_color:
-                img.putpixel((x, y), (0, 0, 0))
+            if img_grayscale.getpixel((x, y)) not in tolerance:
+                img_grayscale.putpixel((x, y), (0))
                 if (x > left and left == 0) or (x < left and left != 0):
                     left = x
                 break
@@ -25,8 +28,8 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     right = width
     for y in range(height):
         for x in reversed(range(width)):
-            if img.getpixel((x, y)) != bg_color:
-                img.putpixel((x, y), (0, 0, 0))
+            if img_grayscale.getpixel((x, y)) not in tolerance:
+                img_grayscale.putpixel((x, y), (0))
                 if x < right and right == width or x > right and right != width:
                     right = x
                 break
@@ -34,8 +37,8 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     top = 0
     for x in range(width):
         for y in range(height):
-            if img.getpixel((x, y)) != bg_color:
-                img.putpixel((x, y), (0, 0, 0))
+            if img_grayscale.getpixel((x, y)) not in tolerance:
+                img_grayscale.putpixel((x, y), (0))
                 if y > top and top == 0 or y < top and top != 0:
                     top = y
                 break
@@ -43,11 +46,14 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     bottom = height
     for x in range(width):
         for y in reversed(range(height)):
-            if img.getpixel((x, y)) != bg_color:
-                img.putpixel((x, y), (0, 0, 0))
+            if img_grayscale.getpixel((x, y)) not in tolerance:
+                img_grayscale.putpixel((x, y), (0))
                 if y < bottom and bottom == height or y > bottom and bottom != height:
                     bottom = y
                 break
+
+    img_grayscale.show()
+    img_grayscale.close()
 
     return (left, top, right, bottom)
 
@@ -106,4 +112,5 @@ if __name__ == "__main__":
     for filename in os.listdir(directory):
         f = os.path.join(directory, filename)
         if os.path.isfile(f) and f.endswith((".jpg")):
-            scale_to_fit(filename, 800, 800, 60)
+            scale_to_fit(os.path.join(
+                os.getcwd(), "source", filename), 800, 800, 60)

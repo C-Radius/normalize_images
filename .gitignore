@@ -1,0 +1,7 @@
+**/*.jpg
+**/*.log
+**/*.jpeg
+venv/
+.vscode/
+output/
+source/

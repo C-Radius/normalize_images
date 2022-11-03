@@ -129,3 +129,5 @@ if __name__ == "__main__":
         if os.path.isfile(f) and f.endswith((".jpg")) and not os.path.exists(os.path.join(os.getcwd(), "output", filename)):
             scale_to_fit(os.path.join(
                 os.getcwd(), "source", filename), 800, 800, 60)
+
+#some comment to allow commit

@@ -106,14 +106,14 @@ def scale_to_fit(img, img_size, padding):
     paste_pos_y = math.ceil((height/2)-(new_size_y/2))
     result.paste(img, (paste_pos_x, paste_pos_y))
     result.save(os.path.join("output", os.path.basename(f)), "JPEG")
-    result.close()
-
+    return result
 
 def usage():
     pass
 
 
 show_grayscale_result = False
+save_extension = ".jpg"
 mark_collisions = False
 enable_logging = True
 image_size = (0, 0)
@@ -167,10 +167,10 @@ if __name__ == "__main__":
     elif os.path.isdir(input_f):
         directory = os.path.join(os.getcwd(), input_f)
         for index, filename in enumerate(os.listdir(directory)):
-            if enable_logging:
-                print(index)
             f = os.path.join(directory, filename)
             if os.path.isfile(f) and f.endswith((save_extension)) and not os.path.exists(os.path.join(os.getcwd(), output_f, filename)):
+                if enable_logging:
+                    print(index)
                 img = Image.open(f)
                 img = scale_to_fit(img, image_size, 60)
                 img.save(os.path.join(os.getcwd(), output_f, filename))

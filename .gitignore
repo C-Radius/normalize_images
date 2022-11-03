@@ -1,6 +1,9 @@
 **/*.jpg
 **/*.log
 **/*.jpeg
+**/*.png
+**/*.gif
+PRODUCT LISTINGS/
 venv/
 .vscode/
 output/

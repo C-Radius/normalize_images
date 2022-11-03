@@ -7,6 +7,7 @@ from PIL import Image, ImageOps
 
 SHOW_GRAYSCALE_RESULT = False
 MARK_COLLISIONS = False
+ENABLE_LOGGING = True
 
 directory = os.path.join(os.getcwd(), "source")
 
@@ -90,15 +91,17 @@ def scale_to_fit(filename, width, height, padding):
         increment = new_size_y - actual_height
         new_size_x = actual_width + increment
 
-    logging.info('Image: %s ------------------', os.path.basename(filename))
-    logging.info('actual_width: %d - actual_height: %d',
-                 actual_width, actual_height)
-    logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
-    logging.info('img_width: %d - img_height: %d', img_width, img_height)
-    logging.info('left: %d - top: %d - right: %d - bottom: %d',
-                 left, top, right, bottom)
-    logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
-    logging.info('----------------------------\n')
+    if ENABLE_LOGGING:
+        logging.info('Image: %s ------------------',
+                     os.path.basename(filename))
+        logging.info('actual_width: %d - actual_height: %d',
+                     actual_width, actual_height)
+        logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
+        logging.info('img_width: %d - img_height: %d', img_width, img_height)
+        logging.info('left: %d - top: %d - right: %d - bottom: %d',
+                     left, top, right, bottom)
+        logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
+        logging.info('----------------------------\n')
 
     img = img.crop((left, top, right, bottom))
     img = img.resize((new_size_x, new_size_y))
@@ -118,8 +121,11 @@ if __name__ == "__main__":
     with contextlib.suppress(Exception):
         os.mkdir("output")
 
-    for filename in os.listdir(directory):
+    for index, filename in enumerate(os.listdir(directory)):
+        if ENABLE_LOGGING:
+            print(index)
+
         f = os.path.join(directory, filename)
-        if os.path.isfile(f) and f.endswith((".jpg")):
+        if os.path.isfile(f) and f.endswith((".jpg")) and not os.path.exists(os.path.join(os.getcwd(), "output", filename)):
             scale_to_fit(os.path.join(
                 os.getcwd(), "source", filename), 800, 800, 60)

@@ -5,22 +5,27 @@ import logging
 import contextlib
 from PIL import Image, ImageOps
 
+show_grayscale_result = False
+mark_collisions = False
+
 directory = os.path.join(os.getcwd(), "source")
 
 
-def image_boundbox(img, bg_color=(255, 255, 255)):
+def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5):
     width = img.width
     height = img.height
 
     img_grayscale = ImageOps.grayscale(img)
 
-    tolerance = {250, 251, 252, 253, 254, 255, }
+    tolerance_range = list(range(255-tolerance+1, 256))
+
     # find left bound
     left = 0
     for y in range(height):
         for x in range(width):
-            if img_grayscale.getpixel((x, y)) not in tolerance:
-                img_grayscale.putpixel((x, y), (0))
+            if img_grayscale.getpixel((x, y)) not in tolerance_range:
+                if mark_collisions:
+                    img_grayscale.putpixel((x, y), (0))
                 if (x > left and left == 0) or (x < left and left != 0):
                     left = x
                 break
@@ -28,8 +33,9 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     right = width
     for y in range(height):
         for x in reversed(range(width)):
-            if img_grayscale.getpixel((x, y)) not in tolerance:
-                img_grayscale.putpixel((x, y), (0))
+            if img_grayscale.getpixel((x, y)) not in tolerance_range:
+                if mark_collisions:
+                    img_grayscale.putpixel((x, y), (0))
                 if x < right and right == width or x > right and right != width:
                     right = x
                 break
@@ -37,8 +43,9 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     top = 0
     for x in range(width):
         for y in range(height):
-            if img_grayscale.getpixel((x, y)) not in tolerance:
-                img_grayscale.putpixel((x, y), (0))
+            if img_grayscale.getpixel((x, y)) not in tolerance_range:
+                if mark_collisions:
+                    img_grayscale.putpixel((x, y), (0))
                 if y > top and top == 0 or y < top and top != 0:
                     top = y
                 break
@@ -46,13 +53,15 @@ def image_boundbox(img, bg_color=(255, 255, 255)):
     bottom = height
     for x in range(width):
         for y in reversed(range(height)):
-            if img_grayscale.getpixel((x, y)) not in tolerance:
-                img_grayscale.putpixel((x, y), (0))
+            if img_grayscale.getpixel((x, y)) not in tolerance_range:
+                if mark_collisions:
+                    img_grayscale.putpixel((x, y), (0))
                 if y < bottom and bottom == height or y > bottom and bottom != height:
                     bottom = y
                 break
 
-    img_grayscale.show()
+    if show_grayscale_result:
+        img_grayscale.show()
     img_grayscale.close()
 
     return (left, top, right, bottom)

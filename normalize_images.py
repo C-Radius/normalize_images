@@ -8,7 +8,18 @@ import getopt
 from PIL import Image, ImageOps
 
 
-def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5):
+SUPPORTED_FORMATS = [".bmp", ".dds", ".exif", ".gif", ".jpg", ".jpeg", ".jps", ".jp2",
+                     ".jpx", ".pcx", ".png", ".pnm", ".ras", ".tga", ".tif", ".tiff", ".xbm", ".xpm"]
+
+
+def supported_extension(input):
+    for ext in SUPPORTED_FORMATS:
+        if input.endswith(ext):
+            return True
+    return False
+
+
+def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5, mark_collisions=False, show_grayscale=True):
     width = img.width
     height = img.height
 
@@ -56,7 +67,7 @@ def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5):
                     bottom = y
                 break
 
-    if show_grayscale_result:
+    if show_grayscale:
         img_grayscale.show()
 
     img_grayscale.close()
@@ -64,14 +75,19 @@ def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5):
     return (left, top, right, bottom)
 
 
-def scale_to_fit(img, img_size, padding):
-    width, height = img_size
+def scale_to_fit(img, padding=50, tolerance=5, image_size=(800, 800), mark_collisions=False, show_grayscale=False, show_color=False, write_log=False):
+    if write_log:
+        logging.info('Image: %s ------------------',
+                     os.path.basename(img.filename))
+
+    width, height = image_size
     image_width, image_height = img.size
 
     if image_width > width or image_height > height:
         img = img.resize((width, height))
 
-    left, top, right, bottom = image_boundbox(img)
+    left, top, right, bottom = image_boundbox(
+        img, tolerance=tolerance, mark_collisions=mark_collisions)
     img_width = width - (padding*2)
     img_height = height - (padding*2)
     actual_width = abs(right - left)
@@ -80,23 +96,25 @@ def scale_to_fit(img, img_size, padding):
     if (actual_width > actual_height):
         new_size_x = actual_width + abs(img_width - actual_width)
         increment = new_size_x - actual_width
-        new_size_y = actual_height + increment
+        new_size_y = int(actual_height + (actual_height *
+                         (increment / actual_width)))
     else:
-        new_size_y = actual_height + \
-            abs((height - (padding*2)) - actual_height)
+        new_size_y = actual_height + abs(img_height - actual_height)
         increment = new_size_y - actual_height
-        new_size_x = actual_width + increment
+        new_size_x = int(actual_width +
+                         (actual_width * (increment / actual_height)))
 
-    if enable_logging:
-        logging.info('Image: %s ------------------',
-                     os.path.basename(filename))
+    if write_log:
         logging.info('actual_width: %d - actual_height: %d',
                      actual_width, actual_height)
-        logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
-        logging.info('img_width: %d - img_height: %d', img_width, img_height)
+        logging.info(
+            'new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
+        logging.info(
+            'img_width: %d - img_height: %d', img_width, img_height)
         logging.info('left: %d - top: %d - right: %d - bottom: %d',
                      left, top, right, bottom)
-        logging.info('new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
+        logging.info(
+            'new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
         logging.info('----------------------------\n')
 
     img = img.crop((left, top, right, bottom))
@@ -105,7 +123,7 @@ def scale_to_fit(img, img_size, padding):
     paste_pos_x = math.ceil((width/2)-(new_size_x/2))
     paste_pos_y = math.ceil((height/2)-(new_size_y/2))
     result.paste(img, (paste_pos_x, paste_pos_y))
-    if show_color_result:
+    if show_color:
         result.show()
     return result
 
@@ -114,48 +132,45 @@ def usage():
     pass
 
 
-mark_collisions = False
-enable_logging = False
-show_grayscale_result = False
-show_color_result = False
-force_replace = False
-save_extension = ".jpg"
-image_size = (0, 0)
-padding = 0
-threshold = 5
-input_f = os.getcwd()
-output_f = os.getcwd()
-directory = os.getcwd()
-
 if __name__ == "__main__":
-    print(sys.argv[1:])
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hs:i:o:e:t:p:lgmcr", [
-                                   "help", "size=", "if=", "of=", "ext=", "threshold=", "padding="])
+            "help", "size=", "if=", "of=", "ext=", "threshold=", "padding="])
     except getopt.GetoptError as err:
         print(err)
         usage()
         sys.exit(2)
 
+    write_log = False
+    show_grayscale = False
+    mark_collisions = False
+    show_color = False
+    force_replace = False
+    input_f = os.getcwd()
+    output_f = os.getcwd()
+    padding = 50
+    image_size = (800, 800)
+    tolerance = 5
+
     for o, a in opts:
         print(o, a)
         if o == "-l":
-            enable_logging = True
+            write_log = True
         elif o == "-g":
-            show_grayscale_result = True
+            show_grayscale = True
         elif o == "-m":
             mark_collisions = True
         elif o == "-c":
-            show_color_result = True
+            show_color = True
         elif o == "-r":
             force_replace = True
         elif o in ("-h", "--help"):
             usage()
             sys.exit(2)
         elif o in ("-i", "--if"):
-            input_f = os.path.join(os.getcwd(), a)
+            input_f = a
         elif o in ("-o", "--of"):
-            output_f = os.path.join(os.getcwd(), a)
+            output_f = a
         elif o in ("-e", "--ext"):
             save_extension = a
         elif o in ("-t", "--threshold"):
@@ -172,25 +187,25 @@ if __name__ == "__main__":
     # Check to see if we're handling single file or folder
     if os.path.isfile(input_f):
         img = Image.open(input_f)
-        img = scale_to_fit(img, image_size, 60)
-        img.save(os.path.join(output_f, os.path.basename(input_f)))
+        img = scale_to_fit(img,  padding=padding, tolerance=tolerance, image_size=image_size,
+                           mark_collisions=mark_collisions, show_grayscale=show_grayscale, show_color=show_color, write_log=write_log)
+        img.save(output_f if supported_extension(output_f)
+                 else os.path.join(output_f, os.path.basename(input_f)))
         img.close()
 
     elif os.path.isdir(input_f):
         # if it's not a file, then it has to be a folder so we try to create the output location
-        with contextlib.suppress(Exception):
-            os.mkdir(output_f)
-
         for index, filename in enumerate(os.listdir(input_f)):
             f = os.path.join(input_f, filename)
-            if os.path.isfile(f) and f.endswith((save_extension)):
+            if os.path.isfile(f) and supported_extension(f):
                 if os.path.exists(os.path.join(output_f, filename)) and not force_replace:
                     continue
 
-                if enable_logging:
+                if write_log:
                     print(index)
                 img = Image.open(f)
-                img = scale_to_fit(img, image_size, 60)
+                img = scale_to_fit(img,  padding=padding, tolerance=tolerance, image_size=image_size,
+                                   mark_collisions=mark_collisions, show_grayscale=show_grayscale, show_color=show_color, write_log=write_log)
                 img.save(os.path.join(os.getcwd(), output_f, filename))
                 img.close()
     else:

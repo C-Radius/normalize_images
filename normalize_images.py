@@ -173,7 +173,7 @@ if __name__ == "__main__":
     if os.path.isfile(input_f):
         img = Image.open(input_f)
         img = scale_to_fit(img, image_size, 60)
-        img.save(os.path.join(os.getcwd(), output_f))
+        img.save(os.path.join(output_f, os.path.basename(input_f)))
         img.close()
 
     elif os.path.isdir(input_f):

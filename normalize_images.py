@@ -7,7 +7,6 @@ import contextlib
 import getopt
 from PIL import Image, ImageOps
 
-
 SUPPORTED_FORMATS = [".bmp", ".dds", ".exif", ".gif", ".jpg", ".jpeg", ".jps", ".jp2",
                      ".jpx", ".pcx", ".png", ".pnm", ".ras", ".tga", ".tif", ".tiff", ".xbm", ".xpm"]
 

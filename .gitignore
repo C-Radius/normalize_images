@@ -8,3 +8,6 @@ venv/
 .vscode/
 output/
 source/
+dist/
+build/
+normalize_images.spec

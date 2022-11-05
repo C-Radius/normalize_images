@@ -19,7 +19,7 @@ def supported_extension(input):
     return False
 
 
-def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5, mark_collisions=False, show_grayscale=True):
+def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5, mark_collisions=False, show_grayscale=False):
     width = img.width
     height = img.height
 
@@ -85,7 +85,7 @@ def scale_to_fit(img, padding=50, tolerance=5, image_size=(800, 800), mark_colli
 
     if image_width > width or image_height > height:
         img = img.resize((width, height))
-
+    """DEAL WITH IMAGES THAT ARE ALREADY BIGGER THAN WIDTH-PADDING/HEIGHT-PADDING."""
     left, top, right, bottom = image_boundbox(
         img, tolerance=tolerance, mark_collisions=mark_collisions)
     img_width = width - (padding*2)

@@ -129,7 +129,30 @@ def scale_to_fit(img, padding=50, tolerance=5, image_size=(800, 800), mark_colli
 
 
 def usage():
-    pass
+    import inspect
+    output_string = inspect.cleandoc("""
+        Utility to normalize images in a set image size
+        options:
+            -s, --size          used to set the target image size. Must be passed as a string with two values
+                                Eg: -s "800 800"
+            -i, --input         Input file location. If file location is file it will use single image mode.
+                                If input file location is a folder, all files in the folder will be processed.
+            -o, --output        Can be directory where the image will be stored with the same name.
+                                Or it can be a folder where all images will be store at.
+            -t, --tolerance     Used to control how much tolerance in color values the algorithm will have.
+                                The bigger the tolerance the less pixels will pass the algorithm's test.
+            -p, --padding       How much wite space witll the result image have around the object.
+            -l, --logging       Enable's logging of information about the image. In terminal and in output
+                                file.
+            -f, --force         overwrite outputfile in case it exists. Without this this rogram does not replace
+                                images.
+            -c                  Show output image. Usually for fast check of the result.
+            -g                  Show grayscale image.
+            -m                  Keep track of collisions and show them in grayscale result.
+            -h, --help          Shows this manual. 
+    """)
+
+    print(output_string)
 
 
 if __name__ == "__main__":
@@ -153,7 +176,6 @@ if __name__ == "__main__":
     tolerance = 5
 
     for o, a in opts:
-        print(o, a)
         if o == "-l":
             write_log = True
         elif o == "-g":
@@ -211,5 +233,3 @@ if __name__ == "__main__":
     else:
         usage()
         sys.exit(2)
-
-# some comment to allow commit

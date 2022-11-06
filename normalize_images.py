@@ -78,53 +78,54 @@ def scale_to_fit(img, padding=50, tolerance=5, image_size=(800, 800), mark_colli
     if write_log:
         logging.info('Image: %s ------------------',
                      os.path.basename(img.filename))
-
-    width, height = image_size
-    image_width, image_height = img.size
-
-    if image_width > width or image_height > height:
-        img = img.resize((width, height))
-    """DEAL WITH IMAGES THAT ARE ALREADY BIGGER THAN WIDTH-PADDING/HEIGHT-PADDING."""
+    # Target width/height of resulting image.
+    target_width, target_height = image_size
+    # Padded width/height of resulting image.
+    padded_width, padded_height = (
+        target_width - (2*padding), target_height - (2*padding))
+    # Get rect area of object inside image.
     left, top, right, bottom = image_boundbox(
         img, tolerance=tolerance, mark_collisions=mark_collisions)
-    img_width = width - (padding*2)
-    img_height = height - (padding*2)
-    actual_width = abs(right - left)
-    actual_height = abs(bottom - top)
+    # Crop image to contain only the object
+    actual_object = img.crop((left, top, right, bottom))
+    # Object width/height
+    object_width, object_height = actual_object.size
 
-    if (actual_width > actual_height):
-        new_size_x = actual_width + abs(img_width - actual_width)
-        increment = new_size_x - actual_width
-        new_size_y = int(actual_height + (actual_height *
-                         (increment / actual_width)))
+    size_change_x = padded_width - object_width
+    size_change_y = padded_height - object_height
+
+    if object_width > object_height:
+        new_size_x = object_width + (padded_width - object_width)
+        increment = new_size_x - object_width
+        new_size_y = int(object_height + (object_height *
+                         (increment / object_width)))
     else:
-        new_size_y = actual_height + abs(img_height - actual_height)
-        increment = new_size_y - actual_height
-        new_size_x = int(actual_width +
-                         (actual_width * (increment / actual_height)))
+        new_size_y = object_height + (padded_height - object_height)
+        increment = new_size_y - object_height
+        new_size_x = int(object_width + (object_width *
+                         (increment / object_height)))
 
     if write_log:
-        logging.info('actual_width: %d - actual_height: %d',
-                     actual_width, actual_height)
-        logging.info(
-            'new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
-        logging.info(
-            'img_width: %d - img_height: %d', img_width, img_height)
+        logging.info('object_width: %d - object_height: %d',
+                     object_width, object_height)
+        logging.info('new_size_x: %d - new_size_y: %d',
+                     new_size_x, new_size_y)
+        logging.info('target_width: %d - target_height: %d',
+                     target_width, target_height)
         logging.info('left: %d - top: %d - right: %d - bottom: %d',
                      left, top, right, bottom)
-        logging.info(
-            'new_size_x: %d - new_size_y: %d', new_size_x, new_size_y)
+        logging.info('new_size_x: %d - new_size_y: %d',
+                     new_size_x, new_size_y)
         logging.info('----------------------------\n')
 
-    img = img.crop((left, top, right, bottom))
-    img = img.resize((new_size_x, new_size_y))
-    result = Image.new("RGB", (width, height), (255, 255, 255))
-    paste_pos_x = math.ceil((width/2)-(new_size_x/2))
-    paste_pos_y = math.ceil((height/2)-(new_size_y/2))
-    result.paste(img, (paste_pos_x, paste_pos_y))
-    if show_color:
-        result.show()
-    return result
+        actual_object = actual_object.resize((new_size_x, new_size_y))
+        result = Image.new(
+            "RGB", (target_width, target_height), (255, 255, 255))
+        result.paste(actual_object, (int((target_width/2) -
+                     (new_size_x / 2)), int((target_height/2) - (new_size_y/2))))
+        if show_color:
+            result.show()
+        return result
 
 
 def usage():

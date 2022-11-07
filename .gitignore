@@ -11,3 +11,4 @@ source/
 dist/
 build/
 normalize_images.spec
+__pycache__/

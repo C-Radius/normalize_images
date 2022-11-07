@@ -1,3 +1,4 @@
+# Investigate this file 2-068579.jpg
 import os
 import sys
 import PIL
@@ -7,12 +8,12 @@ import contextlib
 import getopt
 from PIL import Image, ImageOps
 
-SUPPORTED_FORMATS = [".bmp", ".dds", ".exif", ".gif", ".jpg", ".jpeg", ".jps", ".jp2",
-                     ".jpx", ".pcx", ".png", ".pnm", ".ras", ".tga", ".tif", ".tiff", ".xbm", ".xpm"]
+_SUPPORTED_FORMATS = [".bmp", ".dds", ".exif", ".gif", ".jpg", ".jpeg", ".jps", ".jp2",
+                      ".jpx", ".pcx", ".png", ".pnm", ".ras", ".tga", ".tif", ".tiff", ".xbm", ".xpm"]
 
 
 def supported_extension(input):
-    for ext in SUPPORTED_FORMATS:
+    for ext in _SUPPORTED_FORMATS:
         if input.endswith(ext):
             return True
     return False

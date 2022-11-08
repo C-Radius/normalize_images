@@ -86,7 +86,7 @@ def scale_to_fit(img, padding=50, tolerance=5, image_size=(800, 800), mark_colli
         target_width - (2*padding), target_height - (2*padding))
     # Get rect area of object inside image.
     left, top, right, bottom = image_boundbox(
-        img, tolerance=tolerance, mark_collisions=mark_collisions)
+        img, tolerance=tolerance, mark_collisions=mark_collisions, show_grayscale=show_grayscale)
     # Crop image to contain only the object
     actual_object = img.crop((left, top, right, bottom))
     # Object width/height

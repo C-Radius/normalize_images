@@ -1,74 +1,13 @@
+#!/usr/bin/python3
+from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog)
 from QNI_UI import Ui_MainWindowQNI
-from PyQt6.QtCore import (
-    QRunnable, QObject, QThreadPool, pyqtSignal, pyqtSlot)
-from image_utils import (_SUPPORTED_FORMATS, scale_to_fit, supported_extension)
-from enum import Enum
-from PIL import Image
+from PyQt6.QtCore import QThreadPool
+from image_utils import _SUPPORTED_FORMATS
+from image_processing_worker import *
 import sys
 import os
 import logging
-
-
-class Mode(Enum):
-    FILE = 1
-    FOLDER = 2
-
-
-class ImageProcessingSignals(QObject):
-    def __init__(self):
-        finished = pyqtSignal(int)
-        result_image = pyqtSignal(QObject)
-        error = pyqtSignal(QObject)
-
-
-class ImageProcessingWorker(QRunnable):
-    def __init__(self, input, output, mode=Mode.FILE, padding=50, tolerance=5,
-                 image_size=(800, 800), force_replace=False,  mark_collisions=False,
-                 show_grayscale=False, show_color=False, write_log=False):
-        self.input = input
-        self.output = output
-        self.mode = mode
-        self.padding = padding
-        self.tolerance = tolerance
-        self.image_size = image_size
-        self.force_replace = force_replace
-        self.mark_collisions = mark_collisions
-        self.show_grayscale = show_grayscale
-        self.show_color = show_color
-        self.write_log = write_log
-        self.signals = ImageProcessingSignals()
-
-    @pyqtSlot()
-    def run(self):
-        # Check to see if we're handling single file or folder
-        if self.mode == Mode.FILE:
-            img = Image.open(self.input)
-            img = scale_to_fit(img,  padding=self.padding, tolerance=self.tolerance,
-                               image_size=self.image_size, mark_collisions=self.mark_collisions,
-                               show_grayscale=self.show_grayscale, show_color=self.show_color,
-                               write_log=self.write_log)
-            img.save(self.output if supported_extension(self.output)
-                     else os.path.join(self.output, os.path.basename(self.input)))
-            img.close()
-
-        else:
-            # if it's not a file, then it has to be a folder so we try to create the output location
-            for index, filename in enumerate(os.listdir(self.input)):
-                f = os.path.join(self.input, filename)
-                if os.path.isfile(f) and supported_extension(f):
-                    if os.path.exists(os.path.join(self.output, filename)) and not self.force_replace:
-                        continue
-
-                    if self.write_log:
-                        print(index)
-                    img = Image.open(f)
-                    img = scale_to_fit(img, padding=self.padding, tolerance=self.tolerance,
-                                       image_size=self.image_size, mark_collisions=self.mark_collisions,
-                                       show_grayscale=self.show_grayscale, show_color=self.show_color,
-                                       write_log=self.write_log)
-                    img.save(os.path.join(os.getcwd(), self.output, filename))
-                    img.close()
 
 
 class Window(QMainWindow):
@@ -81,13 +20,31 @@ class Window(QMainWindow):
 
         self.ui.comboBoxExtension.addItems(_SUPPORTED_FORMATS)
 
+        self.input = ""
+        self.output = ""
+        self.mode = Mode.FILE
+        self.padding = 50
+        self.tolerance = 10
+        self.image_size = (800, 800)
+        self.force_replace = False
+        self.mark_collisions = True
+        self.show_grayscale = False
+        self.show_color = False
+        self.write_log = False
+
         self.ui.pushButtonSelectInput.clicked.connect(self.select_input_file)
         self.ui.pushButtonSelectOutput.clicked.connect(self.select_output_file)
         self.ui.radioButtonModeFile.clicked.connect(self.select_mode)
         self.ui.radioButtonModeFolder.clicked.connect(self.select_mode)
         self.ui.spinBoxPadding.valueChanged.connect(self.change_padding)
         self.ui.pushButtonStart.clicked.connect(self.start)
-        self.thread_pool = QThreadPool()
+        self.ui.lineEditWidth.editingFinished.connect(self.change_output_size)
+        self.ui.lineEditHeight.editingFinished.connect(self.change_output_size)
+
+        self.ui.lineEditHeight.setValidator(QIntValidator(1, 9999999))
+        self.ui.lineEditWidth.setValidator(QIntValidator(1, 9999999))
+
+        self.thread_pool = QThreadPool(self)
 
     def select_mode(self):
         if self.ui.radioButtonModeFile.isChecked():
@@ -106,7 +63,7 @@ class Window(QMainWindow):
             self.input, _ = dlg.getOpenFileName(
                 self, "Select input file.", os.getcwd())
         else:
-            self.input, _ = dlg.getExistingDirectory(
+            self.input = dlg.getExistingDirectory(
                 self, "Select input directory.", os.getcwd())
 
         self.ui.lineEditInputPath.setText(self.input)
@@ -114,12 +71,8 @@ class Window(QMainWindow):
     def select_output_file(self):
         dlg = QFileDialog()
 
-        if self.mode == Mode.FILE:
-            self.output, _ = dlg.getOpenFileName(
-                self, "Select output file.", os.getcwd())
-        else:
-            self.output, _ = dlg.getExistingDirectory(
-                self, "Select output directory.", os.getcwd())
+        self.output = dlg.getExistingDirectory(
+            self, "Select output directory.", os.getcwd())
 
         self.ui.lineEditOutputPath.setText(self.output)
 
@@ -141,8 +94,63 @@ class Window(QMainWindow):
         else:
             self.force_logs = False
 
-    def start(self):
+    def change_output_size(self):
+        width = self.ui.lineEditWidth.text()
+        height = self.ui.lineEditHeight.text()
+
+        if width == "":
+            width = 800
+
+        if height == "":
+            height = 800
+
+        width = int(width)
+        height = int(height)
+
+        if width > 0:
+            self.image_size = (width, self.image_size[1])
+        else:
+            self.image_Size = (800, self.image_size[1])
+
+        if height > 0:
+            self.image_size = (self.image_size[0], height)
+        else:
+            self.image_Size = (self.image_size[0], 800)
+
+        if width == None:
+            width = 800
+        if height == None:
+            height = 800
+
+        self.ui.lineEditWidth.setText(str(self.image_size[0]))
+        self.ui.lineEditHeight.setText(str(self.image_size[1]))
+        print(self.image_size)
+
+    def started(self, data):
         pass
+
+    def finished(self, data):
+        pass
+
+    def image_result(self, filename, completion):
+        self.ui.statusbar.showMessage(f'Processing {filename}', 0)
+        self.ui.progressBar.setValue(int(completion))
+
+    def start(self):
+        if self.input == "":
+            return
+        if self.output == "":
+            return
+
+        self.ui.pushButtonStart.setText("Stop")
+        self.ui.pushButtonStart.setStyleSheet(
+            "background-color: rgb(200, 50, 50)")
+        worker = ImageProcessingWorker(self.input, self.output, self.mode, self.padding,
+                                       10, (800, 800), self.force_replace, False, False, False, True)
+        worker.signals.started.connect(self.started)
+        worker.signals.finished.connect(self.finished)
+        worker.signals.result_image.connect(self.image_result)
+        self.thread_pool.start(worker)
 
 
 logging.basicConfig(filename='journal.log',

@@ -2,7 +2,7 @@
 from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog)
 from QNI_UI import Ui_MainWindowQNI
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import QThreadPool, QThread
 from image_utils import _SUPPORTED_FORMATS
 from image_processing_worker import *
 import sys
@@ -11,15 +11,18 @@ import logging
 
 
 class Window(QMainWindow):
+    stop_thread = pyqtSignal()
+
     def __init__(self):
         QMainWindow.__init__(self)
 
+        # Initialize GUI
         self.ui = Ui_MainWindowQNI()
         self.ui.setupUi(self)
         self.mode = Mode.FILE
-
         self.ui.comboBoxExtension.addItems(_SUPPORTED_FORMATS)
 
+        # Default settings setup.
         self.input = ""
         self.output = ""
         self.mode = Mode.FILE
@@ -31,20 +34,20 @@ class Window(QMainWindow):
         self.show_grayscale = False
         self.show_color = False
         self.write_log = False
+        self.running = False
 
+        # Connect signals and slots for GUI
         self.ui.pushButtonSelectInput.clicked.connect(self.select_input_file)
         self.ui.pushButtonSelectOutput.clicked.connect(self.select_output_file)
         self.ui.radioButtonModeFile.clicked.connect(self.select_mode)
         self.ui.radioButtonModeFolder.clicked.connect(self.select_mode)
         self.ui.spinBoxPadding.valueChanged.connect(self.change_padding)
         self.ui.pushButtonStart.clicked.connect(self.start)
+        self.ui.pushButtonStop.clicked.connect(self.stop)
         self.ui.lineEditWidth.editingFinished.connect(self.change_output_size)
         self.ui.lineEditHeight.editingFinished.connect(self.change_output_size)
-
         self.ui.lineEditHeight.setValidator(QIntValidator(1, 9999999))
         self.ui.lineEditWidth.setValidator(QIntValidator(1, 9999999))
-
-        self.thread_pool = QThreadPool(self)
 
     def select_mode(self):
         if self.ui.radioButtonModeFile.isChecked():
@@ -126,12 +129,6 @@ class Window(QMainWindow):
         self.ui.lineEditHeight.setText(str(self.image_size[1]))
         print(self.image_size)
 
-    def started(self, data):
-        pass
-
-    def finished(self, data):
-        pass
-
     def image_result(self, filename, completion):
         self.ui.statusbar.showMessage(f'Processing {filename}', 0)
         self.ui.progressBar.setValue(int(completion))
@@ -142,15 +139,29 @@ class Window(QMainWindow):
         if self.output == "":
             return
 
-        self.ui.pushButtonStart.setText("Stop")
-        self.ui.pushButtonStart.setStyleSheet(
-            "background-color: rgb(200, 50, 50)")
-        worker = ImageProcessingWorker(self.input, self.output, self.mode, self.padding,
-                                       10, (800, 800), self.force_replace, False, False, False, True)
-        worker.signals.started.connect(self.started)
-        worker.signals.finished.connect(self.finished)
-        worker.signals.result_image.connect(self.image_result)
-        self.thread_pool.start(worker)
+        self.worker_thread = QThread()
+        self.worker = ImageProcessingWorker(self.input, self.output, self.mode,
+                                            self.padding, self.tolerance, self.image_size,
+                                            self.force_replace, self.mark_collisions,
+                                            self.show_grayscale, self.show_color,
+                                            self.write_log)
+        self.worker_thread.started.connect(self.worker.start)
+        self.worker.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.finished)
+        self.worker.result_image.connect(self.image_result)
+        self.worker_thread.finished.connect(self.worker.deleteLater)
+        self.stop_thread.connect(self.worker.stop)
+        self.worker.moveToThread(self.worker_thread)
+
+        self.worker_thread.start()
+        self.ui.pushButtonStart.setEnabled(False)
+        self.ui.pushButtonStop.setEnabled(True)
+
+    def stop(self):
+        self.ui.pushButtonStart.setEnabled(True)
+        self.ui.pushButtonStop.setEnabled(False)
+        self.stop_thread.emit()
+        print("In main app stop")
 
 
 logging.basicConfig(filename='journal.log',

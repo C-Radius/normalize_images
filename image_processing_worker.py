@@ -11,13 +11,13 @@ class Mode(Enum):
     FOLDER = 2
 
 
-class ImageProcessingSignals(QObject):
-    started = pyqtSignal(int)
-    finished = pyqtSignal(int)
+class ImageProcessingWorker(QObject):
+    started = pyqtSignal()
     result_image = pyqtSignal(str, float)
+    finished = pyqtSignal(float)
     error = pyqtSignal(str)
 
-    def __init__(self, running_event, input, output, mode=Mode.FILE, padding=50, tolerance=5,
+    def __init__(self, input, output, mode=Mode.FILE, padding=50, tolerance=5,
                  image_size=(800, 800), force_replace=False,  mark_collisions=False,
                  show_grayscale=False, show_color=False, write_log=False):
         super().__init__()
@@ -32,57 +32,62 @@ class ImageProcessingSignals(QObject):
         self.show_grayscale = show_grayscale
         self.show_color = show_color
         self.write_log = write_log
+        self.file_list = []
+        self.input_folder = ""
+        if self.mode == Mode.FILE:
+            self.input_folder = [os.path.split(self.input)[0]]
+            self.file_list = [os.path.split(self.input)[1]]
+        else:
+            self.input_folder = self.input
+            self.file_list = [x for x in os.listdir(self.input)]
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.run)
+
+        self._stop = False
 
     @pyqtSlot()
     def start(self):
-        self.file_list = os.listdir(self.input)
+        self._stop = False
+        self.index = 0
         self.current_file_index = 0
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.run)
-        self.timer.start(100)
+        self.timer.start(500)
+        print("In Start event of image processing thread")
 
     @pyqtSlot()
     def stop(self):
         self.timer.stop()
+        self.index = 0
+        self._stop = True
+        self.finished.emit(100)
+        print("In worker stop")
 
-    @pyqtSlot()
     def run(self):
+        if self._stop == True:
+            return
+
         # Check to see if we're handling single file or folder
-        self.started.emit(True)
+        if os.path.exists(os.path.join(self.output, self.file_list[self.index])) and not self.force_replace:
+            self.index += 1
+            completion = (self.index/len(os.listdir(self.input))*100)
+            self.result_image.emit(os.path.join(
+                self.output, self.file_list[self.index]), completion)
+            self.index += 1
+            return
 
-        if self.mode == Mode.FILE:
-            img = Image.open(self.input)
-            img = scale_to_fit(img,  padding=self.padding, tolerance=self.tolerance,
-                               image_size=self.image_size, mark_collisions=self.mark_collisions,
-                               show_grayscale=self.show_grayscale, show_color=self.show_color,
-                               write_log=self.write_log)
-            img.save(self.output if supported_extension(self.output)
-                     else os.path.join(self.output, os.path.basename(self.input)))
-            img.close()
+        completion = (self.index/len(os.listdir(self.input))*100)
+        self.result_image.emit(os.path.join(
+            self.output, self.file_list[self.index]), completion)
+        self.index += 1
 
-            self.result_image.emit(self.input, 100.0)
+        img = Image.open(os.path.join(str(self.input_folder),
+                         str(self.file_list[self.index])))
 
-        else:
-            # if it's not a file, then it has to be a folder so we try to create the output location
-            for index, filename in enumerate(os.listdir(self.input)):
-                if self.running_event.
-                f = os.path.join(self.input, filename)
-                if os.path.isfile(f) and supported_extension(f):
-                    if os.path.exists(os.path.join(self.output, filename)) and not self.force_replace:
-                        continue
+        img = scale_to_fit(img,  padding=self.padding, tolerance=self.tolerance,
+                           image_size=self.image_size, mark_collisions=self.mark_collisions,
+                           show_grayscale=self.show_grayscale, show_color=self.show_color,
+                           write_log=self.write_log)
+        img.save(os.path.join(self.output, self.file_list[self.index]))
+        img.close()
 
-                    if self.write_log:
-                        print(index)
-                    img = Image.open(f)
-                    img = scale_to_fit(img, padding=self.padding, tolerance=self.tolerance,
-                                       image_size=self.image_size, mark_collisions=self.mark_collisions,
-                                       show_grayscale=self.show_grayscale, show_color=self.show_color,
-                                       write_log=self.write_log)
-                    img.save(os.path.join(os.getcwd(), self.output, filename))
-                    img.close()
-                    completion = (index/len(os.listdir(self.input))*100)
-                    self.result_image.emit(
-                        filename, completion)
-                    print(f'Completion {completion}')
-
-        self.finished.emit(True)
+        if self.index >= len(self.file_list):
+            self.finished.emit(100)

@@ -405,6 +405,19 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="pushButtonStop">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Stop</string>
+        </property>
+        <property name="checkable">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QProgressBar" name="progressBar">
         <property name="enabled">
          <bool>true</bool>

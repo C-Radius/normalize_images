@@ -186,6 +186,7 @@ class Ui_MainWindowQNI(object):
         self.horizontalLayout_9.addWidget(self.groupBox_2)
         self.verticalLayout_3.addLayout(self.horizontalLayout_9)
         self.listWidgetThumbnails = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidgetThumbnails.setIconSize(QtCore.QSize(300, 300))
         self.listWidgetThumbnails.setGridSize(QtCore.QSize(4, 8))
         self.listWidgetThumbnails.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.listWidgetThumbnails.setModelColumn(0)

@@ -1,9 +1,11 @@
+# ni stands for "normalize images"
+
 # Investigate this file 2-068579.jpg
 import getopt
 import sys
 import os
 import logging
-from image_utils import scale_to_fit, supported_extension
+from iu import scale_to_fit, supported_extension
 from PIL import Image
 
 

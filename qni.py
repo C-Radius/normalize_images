@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog)
+from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator, QPixmap, QIcon
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QFileDialog, QListWidgetItem)
 from QNI_UI import Ui_MainWindowQNI
 from PyQt6.QtCore import QThreadPool, QThread
-from image_utils import _SUPPORTED_FORMATS
-from image_processing_worker import *
+from iu import _SUPPORTED_FORMATS
+from ipw import *
 import sys
 import os
 import logging
@@ -15,7 +16,6 @@ class Window(QMainWindow):
 
     def __init__(self):
         QMainWindow.__init__(self)
-
         # Initialize GUI
         self.ui = Ui_MainWindowQNI()
         self.ui.setupUi(self)
@@ -129,7 +129,12 @@ class Window(QMainWindow):
         self.ui.lineEditHeight.setText(str(self.image_size[1]))
         print(self.image_size)
 
-    def image_result(self, filename, completion):
+    def image_result(self, filename, image, completion):
+        from PIL.ImageQt import ImageQt
+        qim = ImageQt(image.resize((250, 250)))
+        pixmap = QPixmap.fromImage(qim)
+        item = QListWidgetItem(QIcon(pixmap), filename)
+        self.ui.listWidgetThumbnails.addItem(item)
         self.ui.statusbar.showMessage(f'Processing {filename}', 0)
         self.ui.progressBar.setValue(int(completion))
 
@@ -145,13 +150,15 @@ class Window(QMainWindow):
                                             self.force_replace, self.mark_collisions,
                                             self.show_grayscale, self.show_color,
                                             self.write_log)
+
         self.worker_thread.started.connect(self.worker.start)
-        self.worker.finished.connect(self.worker_thread.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.finished)
         self.worker.result_image.connect(self.image_result)
-        self.worker_thread.finished.connect(self.worker.deleteLater)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.stop_thread.connect(self.worker.stop)
         self.worker.moveToThread(self.worker_thread)
+        self.worker.finished.connect(self.stop)
 
         self.worker_thread.start()
         self.ui.pushButtonStart.setEnabled(False)
@@ -161,7 +168,6 @@ class Window(QMainWindow):
         self.ui.pushButtonStart.setEnabled(True)
         self.ui.pushButtonStop.setEnabled(False)
         self.stop_thread.emit()
-        print("In main app stop")
 
 
 logging.basicConfig(filename='journal.log',

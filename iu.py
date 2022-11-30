@@ -1,3 +1,4 @@
+# iu stands for "image utils"
 import logging
 import os
 from PIL import ImageOps, Image

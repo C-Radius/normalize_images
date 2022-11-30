@@ -380,6 +380,12 @@
       </item>
       <item>
        <widget class="QListWidget" name="listWidgetThumbnails">
+        <property name="iconSize">
+         <size>
+          <width>300</width>
+          <height>300</height>
+         </size>
+        </property>
         <property name="gridSize">
          <size>
           <width>4</width>

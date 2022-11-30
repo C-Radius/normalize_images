@@ -1,6 +1,7 @@
 #!/usr/bin/python3
+# ipw stands for "image processing worker"
 from PyQt6.QtCore import (QObject, pyqtSignal, pyqtSlot, QTimer)
-from image_utils import (scale_to_fit, supported_extension)
+from image_utils import (scale_to_fit)
 from enum import Enum
 from PIL import Image
 import os
@@ -13,7 +14,7 @@ class Mode(Enum):
 
 class ImageProcessingWorker(QObject):
     started = pyqtSignal()
-    result_image = pyqtSignal(str, float)
+    result_image = pyqtSignal(str, Image.Image, float)
     finished = pyqtSignal(float)
     error = pyqtSignal(str)
 
@@ -34,14 +35,15 @@ class ImageProcessingWorker(QObject):
         self.write_log = write_log
         self.file_list = []
         self.input_folder = ""
+
+        print("Original input: ", self.input)
         if self.mode == Mode.FILE:
-            self.input_folder = [os.path.split(self.input)[0]]
+            self.input_folder = os.path.split(self.input)[0]
             self.file_list = [os.path.split(self.input)[1]]
+            print(self.input_folder, self.file_list[0])
         else:
             self.input_folder = self.input
             self.file_list = [x for x in os.listdir(self.input)]
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.run)
 
         self._stop = False
 
@@ -50,34 +52,35 @@ class ImageProcessingWorker(QObject):
         self._stop = False
         self.index = 0
         self.current_file_index = 0
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.run)
         self.timer.start(500)
-        print("In Start event of image processing thread")
 
     @pyqtSlot()
     def stop(self):
-        self.timer.stop()
-        self.index = 0
         self._stop = True
-        self.finished.emit(100)
-        print("In worker stop")
 
     def run(self):
         if self._stop == True:
+            self.timer.stop()
+            self.index = 0
+            self._stop = True
+            self.finished.emit(100)
             return
 
-        # Check to see if we're handling single file or folder
+        if self.index >= len(self.file_list):
+            self.timer.stop()
+            self.index = 0
+            self._stop = True
+            self.finished.emit(100)
+            return
+
         if os.path.exists(os.path.join(self.output, self.file_list[self.index])) and not self.force_replace:
-            self.index += 1
-            completion = (self.index/len(os.listdir(self.input))*100)
+            completion = (self.index/len(self.file_list)*100)
             self.result_image.emit(os.path.join(
-                self.output, self.file_list[self.index]), completion)
+                self.output, self.file_list[self.index]), Image.open(os.path.join(self.output, self.file_list[self.index])), completion)
             self.index += 1
             return
-
-        completion = (self.index/len(os.listdir(self.input))*100)
-        self.result_image.emit(os.path.join(
-            self.output, self.file_list[self.index]), completion)
-        self.index += 1
 
         img = Image.open(os.path.join(str(self.input_folder),
                          str(self.file_list[self.index])))
@@ -87,7 +90,8 @@ class ImageProcessingWorker(QObject):
                            show_grayscale=self.show_grayscale, show_color=self.show_color,
                            write_log=self.write_log)
         img.save(os.path.join(self.output, self.file_list[self.index]))
-        img.close()
 
-        if self.index >= len(self.file_list):
-            self.finished.emit(100)
+        completion = (self.index/len(self.file_list)*100)
+        self.result_image.emit(os.path.join(
+            self.output, self.file_list[self.index]), img, completion)
+        self.index += 1

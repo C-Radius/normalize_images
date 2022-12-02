@@ -246,7 +246,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="spinBoxPadding_2">
+                <widget class="QSpinBox" name="spinBoxTolerance">
                  <property name="minimumSize">
                   <size>
                    <width>16</width>
@@ -385,6 +385,12 @@
           <width>300</width>
           <height>300</height>
          </size>
+        </property>
+        <property name="textElideMode">
+         <enum>Qt::ElideLeft</enum>
+        </property>
+        <property name="horizontalScrollMode">
+         <enum>QAbstractItemView::ScrollPerItem</enum>
         </property>
         <property name="gridSize">
          <size>

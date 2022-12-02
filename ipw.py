@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # ipw stands for "image processing worker"
 from PyQt6.QtCore import (QObject, pyqtSignal, pyqtSlot, QTimer)
-from image_utils import (scale_to_fit)
+from iu import (scale_to_fit)
 from enum import Enum
 from PIL import Image
 import os
@@ -19,7 +19,7 @@ class ImageProcessingWorker(QObject):
     error = pyqtSignal(str)
 
     def __init__(self, input, output, mode=Mode.FILE, padding=50, tolerance=5,
-                 image_size=(800, 800), force_replace=False,  mark_collisions=False,
+                 image_size=(800, 800), output_extension="*.jpg", force_replace=False,  mark_collisions=False,
                  show_grayscale=False, show_color=False, write_log=False):
         super().__init__()
         self.input = input
@@ -35,6 +35,7 @@ class ImageProcessingWorker(QObject):
         self.write_log = write_log
         self.file_list = []
         self.input_folder = ""
+        self.output_extension = output_extension
 
         print("Original input: ", self.input)
         if self.mode == Mode.FILE:

@@ -1,7 +1,8 @@
 #!/usr/bin/python3
+from PyQt6 import QtWidgets
 from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator, QPixmap, QIcon
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QFileDialog, QListWidgetItem)
+from PyQt6.QtWidgets import (QWidget,
+                             QApplication, QMainWindow, QFileDialog, QListWidgetItem)
 from QNI_UI import Ui_MainWindowQNI
 from PyQt6.QtCore import QThreadPool, QThread
 from iu import _SUPPORTED_FORMATS
@@ -34,6 +35,7 @@ class Window(QMainWindow):
         self.show_grayscale = False
         self.show_color = False
         self.write_log = False
+        self.output_extension = ".jpg"
         self.running = False
 
         # Connect signals and slots for GUI
@@ -131,12 +133,48 @@ class Window(QMainWindow):
 
     def image_result(self, filename, image, completion):
         from PIL.ImageQt import ImageQt
-        qim = ImageQt(image.resize((250, 250)))
-        pixmap = QPixmap.fromImage(qim)
-        item = QListWidgetItem(QIcon(pixmap), filename)
+        pixmap = QPixmap.fromImage(ImageQt(image))
+        item = QListWidgetItem()
+        item.setText(os.path.split(filename)[1])
+        item.setIcon(QIcon(pixmap))
+
         self.ui.listWidgetThumbnails.addItem(item)
         self.ui.statusbar.showMessage(f'Processing {filename}', 0)
         self.ui.progressBar.setValue(int(completion))
+
+    def disable_interface(self):
+        self.ui.pushButtonStop.setEnabled(True)
+        self.ui.pushButtonStart.setEnabled(False)
+        self.ui.checkBoxLogs.setEnabled(False)
+        self.ui.checkBoxReplace.setEnabled(False)
+        self.ui.pushButtonSelectInput.setEnabled(False)
+        self.ui.pushButtonSelectOutput.setEnabled(False)
+        self.ui.spinBoxPadding.setEnabled(False)
+        self.ui.spinBoxTolerance.setEnabled(False)
+        self.ui.lineEditHeight.setEnabled(False)
+        self.ui.lineEditWidth.setEnabled(False)
+        self.ui.lineEditInputPath.setEnabled(False)
+        self.ui.lineEditOutputPath.setEnabled(False)
+        self.ui.radioButtonModeFile.setEnabled(False)
+        self.ui.radioButtonModeFolder.setEnabled(False)
+        self.ui.comboBoxExtension.setEnabled(False)
+
+    def enable_interface(self):
+        self.ui.pushButtonStop.setEnabled(False)
+        self.ui.pushButtonStart.setEnabled(True)
+        self.ui.checkBoxLogs.setEnabled(True)
+        self.ui.checkBoxReplace.setEnabled(True)
+        self.ui.pushButtonSelectInput.setEnabled(True)
+        self.ui.pushButtonSelectOutput.setEnabled(True)
+        self.ui.spinBoxPadding.setEnabled(True)
+        self.ui.spinBoxTolerance.setEnabled(True)
+        self.ui.lineEditHeight.setEnabled(True)
+        self.ui.lineEditWidth.setEnabled(True)
+        self.ui.lineEditInputPath.setEnabled(True)
+        self.ui.lineEditOutputPath.setEnabled(True)
+        self.ui.radioButtonModeFile.setEnabled(True)
+        self.ui.radioButtonModeFolder.setEnabled(True)
+        self.ui.comboBoxExtension.setEnabled(True)
 
     def start(self):
         if self.input == "":
@@ -146,7 +184,7 @@ class Window(QMainWindow):
 
         self.worker_thread = QThread()
         self.worker = ImageProcessingWorker(self.input, self.output, self.mode,
-                                            self.padding, self.tolerance, self.image_size,
+                                            self.padding, self.tolerance, self.image_size, self.output_extension,
                                             self.force_replace, self.mark_collisions,
                                             self.show_grayscale, self.show_color,
                                             self.write_log)
@@ -161,12 +199,10 @@ class Window(QMainWindow):
         self.worker.finished.connect(self.stop)
 
         self.worker_thread.start()
-        self.ui.pushButtonStart.setEnabled(False)
-        self.ui.pushButtonStop.setEnabled(True)
+        self.disable_interface()
 
     def stop(self):
-        self.ui.pushButtonStart.setEnabled(True)
-        self.ui.pushButtonStop.setEnabled(False)
+        self.enable_interface()
         self.stop_thread.emit()
 
 

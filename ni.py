@@ -7,6 +7,43 @@ import os
 import logging
 from iu import scale_to_fit, supported_extension
 from PIL import Image
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+
+class EventHandler(FileSystemEventHandler):
+    def __init__(self, output_f, padding, tolerance, image_size, mark_collisions, show_grayscale, show_color, write_log):
+        self.output_f = output_f
+        self.padding = padding
+        self.tolerance = tolerance
+        self.image_size = image_size
+        self.mark_collisions = mark_collisions
+        self.show_grayscale = show_grayscale
+        self.show_color = show_color
+        self.write_log = write_log
+
+    def process_event(self, event):
+        process_image(event.src_path, self.output_f, self.padding, self.tolerance, self.image_size,
+                      self.mark_collisions, self.show_grayscale, self.show_color, self.write_log)
+
+    def on_closed(self, event):
+        self.process_event(event)
+
+    def on_created(self, event):
+        pass  # self.process_event(event)
+
+    def on_deleted(self, event):
+        pass
+
+    def on_modified(self, event):
+        pass
+        # process_image(event.src_path, self.output_f, self.padding, self.tolerance, self.image_size,
+        # self.mark_collisions, self.show_grayscale, self.show_color, self.write_log)
+
+    def on_moved(self, event):
+        pass
+       # process_image(event.src_path, self.output_f, self.padding, self.tolerance, self.image_size,
+       #               self.mark_collisions, self.show_grayscale, self.show_color, self.write_log)
 
 
 def usage():
@@ -30,16 +67,32 @@ def usage():
             -c                  Show output image. Usually for fast check of the result.
             -g                  Show grayscale image.
             -m                  Keep track of collisions and show them in grayscale result.
-            -h, --help          Shows this manual. 
+            -h, --help          Shows this manual.
+            -w, --watch         Run script as a watcher that notices file changes in input directory and
+                                outputs the result in the output directory.
     """)
 
     print(output_string)
 
 
+def process_image(input_f, output_f, padding, tolerance, image_size, mark_collisions, show_grayscale, show_color, write_log):
+    image = Image.open(input_f)
+    image = scale_to_fit(image,  padding=padding, tolerance=tolerance, image_size=image_size,
+                         mark_collisions=mark_collisions, show_grayscale=show_grayscale, show_color=show_color, write_log=write_log)
+    image.save(output_f if supported_extension(output_f)
+               else os.path.join(output_f, os.path.basename(input_f)))
+    image.close()
+
+
+def quit():
+    usage()
+    sys.exit(2)
+
+
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hs:i:o:e:t:p:lgmcr", [
-            "help", "size=", "if=", "of=", "ext=", "threshold=", "padding="])
+        opts, args = getopt.getopt(sys.argv[1:], "hs:i:o:e:t:p:lgmcrw", [
+            "help", "size=", "if=", "of=", "ext=", "threshold=", "padding=", "watch="])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -55,6 +108,7 @@ if __name__ == "__main__":
     padding = 50
     image_size = (800, 800)
     tolerance = 5
+    watch = False
 
     for o, a in opts:
         if o == "-l":
@@ -82,35 +136,46 @@ if __name__ == "__main__":
             padding = int(a)
         elif o in ("-s", "--size"):
             image_size = tuple(int(x) for x in a.split(" "))
+        elif o in ("-w", "--watch"):
+            watch = True
 
     logging.basicConfig(filename='journal.log',
                         encoding='utf-8', level=logging.INFO)
     logging.getLogger().addHandler(logging.StreamHandler())
 
-    # Check to see if we're handling single file or folder
-    if os.path.isfile(input_f):
-        img = Image.open(input_f)
-        img = scale_to_fit(img,  padding=padding, tolerance=tolerance, image_size=image_size,
-                           mark_collisions=mark_collisions, show_grayscale=show_grayscale, show_color=show_color, write_log=write_log)
-        img.save(output_f if supported_extension(output_f)
-                 else os.path.join(output_f, os.path.basename(input_f)))
-        img.close()
+    if watch == True:
+        if not os.path.isdir(input_f):
+            quit()
 
-    elif os.path.isdir(input_f):
-        # if it's not a file, then it has to be a folder so we try to create the output location
-        for index, filename in enumerate(os.listdir(input_f)):
-            f = os.path.join(input_f, filename)
-            if os.path.isfile(f) and supported_extension(f):
-                if os.path.exists(os.path.join(output_f, filename)) and not force_replace:
-                    continue
+        event_handler = EventHandler(
+            output_f, padding, tolerance, image_size, mark_collisions, show_grayscale, show_color, write_log)
+        observer = Observer()
+        observer.schedule(event_handler, input_f, recursive=True)
+        observer.start()
 
-                if write_log:
-                    print(index)
-                img = Image.open(f)
-                img = scale_to_fit(img,  padding=padding, tolerance=tolerance, image_size=image_size,
-                                   mark_collisions=mark_collisions, show_grayscale=show_grayscale, show_color=show_color, write_log=write_log)
-                img.save(os.path.join(os.getcwd(), output_f, filename))
-                img.close()
+        try:
+            while observer.is_alive():
+                observer.join(1)
+        finally:
+            observer.stop()
+            observer.join()
+
     else:
-        usage()
-        sys.exit(2)
+        # Check to see if we're handling single file or folder
+        if os.path.isfile(input_f):
+            process_image(input_f, output_f, padding, tolerance, image_size,
+                          mark_collisions, show_grayscale, show_color, write_log)
+        elif os.path.isdir(input_f):
+            # if it's not a file, then it has to be a folder so we try to create the output location
+            for index, filename in enumerate(os.listdir(input_f)):
+                f = os.path.join(input_f, filename)
+                if os.path.isfile(f) and supported_extension(f):
+                    if os.path.exists(os.path.join(output_f, filename)) and not force_replace:
+                        continue
+
+                    if write_log:
+                        print(index)
+                    process_image(os.path.join(input_f, filename), output_f, padding, tolerance, image_size,
+                                  mark_collisions, show_grayscale, show_color, write_log)
+        else:
+            quit()

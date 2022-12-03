@@ -15,7 +15,7 @@ def supported_extension(input):
     return False
 
 
-def image_boundbox(img, bg_color=(255, 255, 255), tolerance=5, mark_collisions=False, show_grayscale=False):
+def image_boundbox(img, tolerance=5, mark_collisions=False, show_grayscale=False):
     width = img.width
     height = img.height
 

@@ -4,7 +4,7 @@ from PyQt6.QtGui import QFocusEvent, QIntValidator, QValidator, QPixmap, QIcon
 from PyQt6.QtWidgets import (QWidget,
                              QApplication, QMainWindow, QFileDialog, QListWidgetItem)
 from QNI_UI import Ui_MainWindowQNI
-from PyQt6.QtCore import QThreadPool, QThread
+from PyQt6.QtCore import QThreadPool, QThread, QSize
 from iu import _SUPPORTED_FORMATS
 from ipw import *
 import sys
@@ -133,10 +133,12 @@ class Window(QMainWindow):
 
     def image_result(self, filename, image, completion):
         from PIL.ImageQt import ImageQt
-        pixmap = QPixmap.fromImage(ImageQt(image))
+        pixmap = QPixmap.fromImage(ImageQt(image.resize((255, 255))))
         item = QListWidgetItem()
         item.setText(os.path.split(filename)[1])
         item.setIcon(QIcon(pixmap))
+        self.ui.listWidgetThumbnails.setIconSize(QSize(255, 255))
+        self.ui.listWidgetThumbnails.setGridSize(QSize(4, 4))
 
         self.ui.listWidgetThumbnails.addItem(item)
         self.ui.statusbar.showMessage(f'Processing {filename}', 0)
